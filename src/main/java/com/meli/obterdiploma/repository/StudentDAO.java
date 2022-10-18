@@ -12,8 +12,10 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Repository
 public class StudentDAO implements IStudentDAO {
@@ -111,5 +113,13 @@ public class StudentDAO implements IStudentDAO {
             e.printStackTrace();
             System.out.println("Failed while writing to DB, check your JSON formatting.");
         }
+    }
+
+    public List<StudentDTO> listAllData(){
+        return this.students.stream().collect(Collectors.toList());
+    }
+
+    public void deleteAll(){
+        this.students.clear();
     }
 }
