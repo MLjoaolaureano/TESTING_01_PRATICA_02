@@ -8,6 +8,7 @@ import lombok.Setter;
 import javax.validation.Valid;
 import javax.validation.constraints.*;
 import java.util.List;
+import java.util.Objects;
 
 @Getter @Setter
 @AllArgsConstructor
@@ -26,4 +27,17 @@ public class StudentDTO {
 
     @NotEmpty(message = "A lista de assuntos não pode ficar vazia.")
     List<@Valid SubjectDTO> subjects;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        StudentDTO that = (StudentDTO) o;
+        return Objects.equals(studentName, that.studentName) && Objects.equals(message, that.message) && Objects.equals(averageScore, that.averageScore) && Objects.equals(subjects, that.subjects);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, studentName, message, averageScore, subjects);
+    }
 }

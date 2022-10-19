@@ -1,6 +1,7 @@
 package com.meli.obterdiploma.integrado;
 
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.meli.obterdiploma.exception.StudentNotFoundException;
 import com.meli.obterdiploma.model.StudentDTO;
@@ -19,8 +20,11 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -40,7 +44,7 @@ public class StudentControllerIT {
     private IStudentDAO studentDAO;
 
     @BeforeEach
-    void setup(){
+    void setup() {
         this.studentDAO.deleteAll();
     }
 
@@ -228,9 +232,78 @@ public class StudentControllerIT {
         ResultActions response = mockMvc.perform(get("/student/getStudent/{id}", newId).contentType(MediaType.APPLICATION_JSON));
 
         response.andExpect(status().isOk())
-                .andExpect(jsonPath("$.studentName", CoreMatchers.is(studentDTO.getStudentName())))
-                .andExpect(jsonPath("$.subjects", CoreMatchers.is(new ObjectMapper().writeValueAsString(studentDTO.getSubjects()))));
+                .andExpect(jsonPath("$.studentName", CoreMatchers.is(studentDTO.getStudentName())));
+
+        //A partir daqui eu fiz a leitura do response para um objeto do tipo StudentDTO e com este objeto eu consigo comparar
+        //o tamanho da lista e os valores de cada objeto da lista.
+        ObjectMapper mapper = new ObjectMapper();
+        StudentDTO studentDTOAtual = mapper.readValue(response.andReturn().getResponse().getContentAsString(), new TypeReference<StudentDTO>() {
+        });
+
+        System.out.println(subjectDTOList);
+        assertTrue(subjectDTOList.size() == studentDTOAtual.getSubjects().size()
+                && subjectDTOList.get(0).getName().equals(studentDTOAtual.getSubjects().get(0).getName())
+                && subjectDTOList.get(1).getName().equals(studentDTOAtual.getSubjects().get(1).getName())
+                && subjectDTOList.get(2).getName().equals(studentDTOAtual.getSubjects().get(2).getName()));
+        //Aqui você poderia fazer mais comparações, caso ache necessário.
 
     }
+
+    @Test
+    void getStudent_throwStudentNotFoundException_whenUsingInexistentStudentId() throws Exception {
+
+        ResultActions response = mockMvc.perform(get("/student/getStudent/{id}", Long.MAX_VALUE).contentType(MediaType.APPLICATION_JSON));
+
+        response.andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.description", CoreMatchers.is(String.format("O aluno com Id %d não está registrado.", Long.MAX_VALUE))))
+                .andExpect(result -> assertTrue(
+                        result.getResolvedException() instanceof StudentNotFoundException
+                ));
+    }
+
+    @Test
+    void removeStudent_returnOkStatus_whenSuccess() throws Exception {
+        Long newId = 1L;
+
+        List<SubjectDTO> subjectDTOList = new ArrayList<>();
+        subjectDTOList.add(new SubjectDTO("Math", 10.00));
+        subjectDTOList.add(new SubjectDTO("Physical Education", 10.00));
+        subjectDTOList.add(new SubjectDTO("Chemistry", 10.00));
+
+        StudentDTO studentDTO = new StudentDTO(newId, "John Doe", "Blank", 0.00, subjectDTOList);
+        studentDAO.save(studentDTO);
+
+        ResultActions response = mockMvc.perform(get("/student/removeStudent/{id}", newId).contentType(MediaType.APPLICATION_JSON));
+
+        response.andExpect(status().isOk());
+
+        assertThat(studentDAO.listAllData().size()).isEqualTo(0);
+
+    }
+
+    @Test
+    void listStudents_returnOkStatus_whenSuccess() throws Exception {
+        List<SubjectDTO> subjectDTOList = new ArrayList<>();
+        subjectDTOList.add(new SubjectDTO("Math", 10.00));
+        subjectDTOList.add(new SubjectDTO("Physical Education", 10.00));
+        subjectDTOList.add(new SubjectDTO("Chemistry", 10.00));
+
+        Long newId = 1L;
+        StudentDTO studentDTO = new StudentDTO(newId, "John Doe", "Blank", 0.00, subjectDTOList);
+
+        studentDAO.save(studentDTO);
+        studentDAO.save(studentDTO);
+        studentDAO.save(studentDTO);
+
+        ResultActions response = mockMvc.perform(get("/student/listStudents").contentType(MediaType.APPLICATION_JSON));
+
+        response.andExpect(status().isOk());
+
+        ObjectMapper mapper = new ObjectMapper();
+        Set<StudentDTO> studentDTOSet = mapper.readValue(response.andReturn().getResponse().getContentAsString(), new TypeReference<HashSet<StudentDTO>>() {});
+
+        assertTrue(studentDTOSet.contains(studentDTO));
+    }
+
 
 }
